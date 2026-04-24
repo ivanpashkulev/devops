@@ -9,7 +9,7 @@ services:
       - api
 
   api:
-    image: ghcr.io/ivanpashkulev/api-main:057fbf3
+    image: ghcr.io/ivanpashkulev/api-main:2491fbf
     container_name: api-main
     restart: unless-stopped
     environment:
