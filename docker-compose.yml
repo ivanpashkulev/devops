@@ -17,6 +17,13 @@ services:
     volumes:
       - ./assets:/app/assets
 
+  dj:
+    image: nginx:alpine
+    container_name: dj
+    restart: unless-stopped
+    volumes:
+      - ./dj:/usr/share/nginx/html:ro
+
   nginx:
     image: nginx:alpine
     container_name: nginx
@@ -27,4 +34,5 @@ services:
     depends_on:
       - web
       - api
+      - dj
     restart: unless-stopped
