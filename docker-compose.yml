@@ -17,6 +17,11 @@ services:
     volumes:
       - ./assets:/app/assets
 
+  dj:
+    image: ghcr.io/ivanpashkulev/dj:placeholder
+    container_name: dj
+    restart: unless-stopped
+
   nginx:
     image: nginx:alpine
     container_name: nginx
@@ -27,4 +32,5 @@ services:
     depends_on:
       - web
       - api
+      - dj
     restart: unless-stopped
