@@ -18,7 +18,7 @@ services:
       - ./assets:/app/assets
 
   dj:
-    image: ghcr.io/ivanpashkulev/dj:d37978c
+    image: ghcr.io/ivanpashkulev/dj:6d2e1af
     container_name: dj
     restart: unless-stopped
 
