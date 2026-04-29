@@ -18,11 +18,9 @@ services:
       - ./assets:/app/assets
 
   dj:
-    image: nginx:alpine
+    image: ghcr.io/ivanpashkulev/dj:placeholder
     container_name: dj
     restart: unless-stopped
-    volumes:
-      - ./dj:/usr/share/nginx/html:ro
 
   nginx:
     image: nginx:alpine
