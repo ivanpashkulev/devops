@@ -15,7 +15,7 @@ Infrastructure as Code for [ivanpashkulev.com](https://ivanpashkulev.com). This 
                     └──────────────┬──────────────────────┘
                                    │ HTTP (outbound tunnel)
                     ┌──────────────▼──────────────────────┐
-                    │           Ubuntu ARM64 VM            │
+                    │           Ubuntu AMD64 VM            │
                     │                                      │
                     │  ┌─────────────────────────────┐    │
                     │  │         nginx:alpine         │    │
@@ -29,13 +29,11 @@ Infrastructure as Code for [ivanpashkulev.com](https://ivanpashkulev.com). This 
                     │  │  FastAPI     │ │  Vite Preview│  │
                     │  │  :8000       │ │  :4173       │  │
                     │  └──────┬───────┘ └──────────────┘  │
-                    │         │                            │
                     └─────────┼────────────────────────────┘
-                              │ HTTP :11434
+                              │ HTTPS
                     ┌─────────▼────────────────────────────┐
-                    │       Mac Host (Apple M2 Max)         │
-                    │       Ollama — deepseek-r1:8b         │
-                    │       (Metal GPU acceleration)        │
+                    │             OpenAI API               │
+                    │             gpt-4o-mini              │
                     └──────────────────────────────────────┘
 ```
 
@@ -49,11 +47,11 @@ Infrastructure as Code for [ivanpashkulev.com](https://ivanpashkulev.com). This 
 5. nginx receives the request on port 80 and routes it:
    - `/api/*` → `api-main` FastAPI service on port 8000
    - `/*` → `web-main` Vite preview server on port 4173
-6. For `/api/chat`, the FastAPI service calls Ollama on the Mac host via the VM's gateway IP
+6. For `/api/chat`, the FastAPI service calls OpenAI's `gpt-4o-mini` model over HTTPS
 
 **SSL/TLS:** Cloudflare terminates HTTPS at the edge. Traffic between Cloudflare and the VM is encrypted by the tunnel. nginx serves plain HTTP internally — no certificate management required.
 
-**GitOps deployment:** Docker image tags in `docker-compose.yml` are updated automatically via pull requests opened by GitHub Actions in the `api-main` and `web-main` repositories on every merge to `main`.
+**GitOps deployment:** Docker image tags in `docker-compose.yml` are updated automatically via pull requests opened by GitHub Actions in the `api-main`, `web-main`, and `dj` repositories on every merge to `main`.
 
 ## Repository Structure
 
@@ -80,7 +78,8 @@ devops/
 ### api-main
 - Image: `ghcr.io/ivanpashkulev/api-main:<sha>`
 - FastAPI + LangGraph AI agent
-- Requires `OLLAMA_BASE_URL` environment variable
+- Requires the `OPENAI_API_KEY` environment variable
+- Uses `OPENAI_MODEL`, which defaults to `gpt-4o-mini`
 - Requires `assets/` volume mount with context documents
 - Source: [ivanpashkulev/api-main](https://github.com/ivanpashkulev/api-main)
 
@@ -92,11 +91,11 @@ devops/
 
 ## Prerequisites
 
-- Ubuntu ARM64 server (tested on 24.04)
+- Ubuntu AMD64 server
 - Docker + Docker Compose
 - `cloudflared` installed
 - Domain on Cloudflare with nameservers configured
-- Ollama running on the host machine with `deepseek-r1:8b`
+- OpenAI API key
 
 ## Deployment
 
@@ -114,14 +113,10 @@ cp .env.example .env
 nano .env
 ```
 
-Set `OLLAMA_BASE_URL` to the host machine's IP as seen from the VM (typically the gateway IP):
+Set the OpenAI API key. The model is optional and defaults to `gpt-4o-mini`:
 ```env
-OLLAMA_BASE_URL=http://<host-gateway-ip>:11434
-```
-
-Find the gateway IP with:
-```bash
-ip route | grep default
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 **3. Place context assets**
@@ -189,16 +184,3 @@ The `cloudflare/worker.js` file contains a Cloudflare Worker that acts as a tran
 - Passes all other responses through unchanged
 
 The Worker is deployed manually via the Cloudflare dashboard and routed to `ivanpashkulev.com/*`.
-
-## Ollama Configuration
-
-Ollama must be running on the host machine with the model loaded and accessible from the VM:
-
-```bash
-OLLAMA_HOST=0.0.0.0 ollama serve
-```
-
-Verify connectivity from the VM:
-```bash
-curl http://<host-gateway-ip>:11434
-```
