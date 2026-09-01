@@ -1,3 +1,4 @@
 .env
 assets/
 INSTRUCTIONS.md
+.DS_Store
