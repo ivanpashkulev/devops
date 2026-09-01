@@ -85,7 +85,7 @@ jobs:
         with:
           token: ${{ secrets.DEVOPS_TOKEN }}
           add-paths: docker-compose.yml
-          branch: deploy/${{ env.SERVICE }}-${{ env.SHORT_SHA }}
+          branch: deploy/${{ env.SERVICE }}
           delete-branch: true
           commit-message: "deploy: ${{ env.SERVICE }} -> ${{ env.SHORT_SHA }}"
           title: "deploy: ${{ env.SERVICE }} -> ${{ env.SHORT_SHA }}"
