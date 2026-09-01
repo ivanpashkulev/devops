@@ -1,4 +1,4 @@
-name: Build and publish
+name: Build, publish and create image update PR
 
 on:
   workflow_call:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   build-and-publish:
+    name: Build and publish Docker image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,6 +47,7 @@ jobs:
           tags: ${{ steps.metadata.outputs.image }}:${{ github.sha }}
 
   update-devops:
+    name: Create image update PR
     needs: build-and-publish
     runs-on: ubuntu-latest
     permissions:
@@ -92,4 +94,3 @@ jobs:
 
             **Image:** `${{ env.IMAGE }}:${{ env.TAG }}`
             **Source:** `${{ github.repository }}@${{ env.TAG }}`
-            
