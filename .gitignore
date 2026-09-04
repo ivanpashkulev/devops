@@ -2,3 +2,4 @@
 assets/
 INSTRUCTIONS.md
 .DS_Store
+.terraform/
