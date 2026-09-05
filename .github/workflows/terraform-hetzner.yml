@@ -1,0 +1,79 @@
+name: Hetzner Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Terraform operation
+        required: true
+        default: Provision
+        type: choice
+        options:
+          - Provision
+          - Destroy
+
+      should_apply:
+        description: Apply the generated Terraform plan?
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-hetzner-ivanpashkulev-com
+  cancel-in-progress: false
+
+jobs:
+  terraform-quality:
+    name: Terraform quality and security checks
+    uses: pashkulev-devops-projects/github-actions/.github/workflows/terraform-quality.yml@fba02608b604b8b642a1ba3440e0aa34e2b27be0
+    with:
+      project_paths: '["terraform/hetzner"]'
+
+  terraform-hetzner:
+    name: Hetzner Terraform ${{ inputs.action }}
+    needs: terraform-quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate Terraform version
+        shell: bash
+        env:
+          TERRAFORM_VERSION: ${{ vars.TERRAFORM_VERSION }}
+        run: |
+          if [[ ! "$TERRAFORM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Set TERRAFORM_VERSION to an exact release version, for example 1.15.8."
+            exit 1
+          fi
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Authenticate AWS state backend
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-central-1
+
+      - name: Execute Terraform ${{ inputs.action }}
+        uses: pashkulev-devops-projects/github-actions/actions/terraform@49a95e243c794eb06e15c97924812fbdc7be1b0a
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_ansible_server_public_ssh_key: ${{ secrets.ANSIBLE_SERVER_PUBLIC_SSH_KEY }}
+          TF_VAR_allowed_ssh_ips: ${{ vars.ALLOWED_SSH_IPS }}
+          TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+        with:
+          working_directory: terraform/hetzner
+          action: ${{ inputs.action }}
+          should_apply: ${{ toJSON(inputs.should_apply) }}
