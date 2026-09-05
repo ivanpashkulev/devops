@@ -10,13 +10,25 @@ locals {
     environment = "production"
     managed_by  = "terraform"
   }
+
+  ssh_keys = {
+    ansible_controller = {
+      name       = "ansible-server-key"
+      public_key = var.ansible_server_public_ssh_key
+    }
+    github_actions = {
+      name       = "ivanpashkulev-github-actions"
+      public_key = var.gh_actions_public_ssh_key
+    }
+  }
 }
 
 module "ssh_key" {
-  source = "git::https://github.com/pashkulev-devops-projects/terraform-modules.git//hetzner/ssh-key?ref=v0.2.0"
+  source   = "git::https://github.com/pashkulev-devops-projects/terraform-modules.git//hetzner/ssh-key?ref=v0.2.0"
+  for_each = local.ssh_keys
 
-  name       = "ansible-server-key"
-  public_key = var.ansible_server_public_ssh_key
+  name       = each.value.name
+  public_key = each.value.public_key
   labels     = local.common_labels
 }
 
@@ -64,7 +76,10 @@ module "servers" {
   location         = var.location
   image            = var.image
 
-  ssh_keys     = [tostring(module.ssh_key.id)]
+  ssh_keys = [
+    for key in module.ssh_key : tostring(key.id)
+  ]
+
   firewall_ids = [module.firewall.firewall_id]
   labels       = local.common_labels
 }

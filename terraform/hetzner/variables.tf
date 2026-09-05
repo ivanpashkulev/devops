@@ -40,7 +40,12 @@ variable "allowed_ssh_ips" {
 
 variable "ansible_server_public_ssh_key" {
   type        = string
-  description = "Public SSH key used by Ansible."
+  description = "Public SSH key used by Ansible Local Server."
+}
+
+variable "gh_actions_public_ssh_key" {
+  type        = string
+  description = "Public SSH key used by GitHub Actions for Ansible deployment."
 }
 
 variable "cloudflare_zone_id" {
