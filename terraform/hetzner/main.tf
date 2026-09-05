@@ -2,6 +2,8 @@ data "http" "runner_public_ip" {
   url = "https://api.ipify.org"
 }
 
+data "cloudflare_ip_ranges" "this" {}
+
 locals {
   common_labels = {
     project     = "ivanpashkulev-com"
@@ -38,15 +40,15 @@ module "firewall" {
       direction   = "in"
       protocol    = "tcp"
       port        = "80"
-      source_ips  = ["0.0.0.0/0", "::/0"]
-      description = "Allow HTTP"
+      source_ips  = data.cloudflare_ip_ranges.this.ipv4_cidrs
+      description = "Allow HTTP traffic from Cloudflare IP ranges"
     },
     {
       direction   = "in"
       protocol    = "tcp"
       port        = "443"
-      source_ips  = ["0.0.0.0/0", "::/0"]
-      description = "Allow HTTPS"
+      source_ips  = data.cloudflare_ip_ranges.this.ipv4_cidrs
+      description = "Allow HTTPS traffic from Cloudflare IP ranges"
     }
   ]
 
