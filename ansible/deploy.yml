@@ -1,0 +1,93 @@
+---
+- name: Validate deployment targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Require at least one Hetzner target
+      ansible.builtin.assert:
+        that:
+          - groups.get('hetzner', []) | length > 0
+        fail_msg: No Hetzner servers matched the inventory selector.
+
+- name: Deploy applications on Hetzner
+  hosts: hetzner
+  remote_user: root
+  gather_facts: false
+
+  tasks:
+    - name: Wait for SSH readiness on the Terraform-provisioned VM
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+
+    - name: Wait for initial server setup
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Install Docker and Compose
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+
+    - name: Start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: /opt/ivanpashkulev/nginx
+        state: directory
+        mode: "0755"
+
+    - name: Copy Compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../docker-compose.yml"
+        dest: /opt/ivanpashkulev/docker-compose.yml
+        mode: "0644"
+
+    - name: Copy Nginx configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../nginx/nginx.conf"
+        dest: /opt/ivanpashkulev/nginx/nginx.conf
+        mode: "0644"
+
+    - name: Create certificate directory
+      ansible.builtin.file:
+        path: /etc/nginx/ssl
+        state: directory
+        mode: "0700"
+
+    - name: Copy Cloudflare certificate
+      ansible.builtin.copy:
+        content: "{{ lookup('ansible.builtin.env', 'CLOUDFLARE_ORIGIN_CERT') }}"
+        dest: /etc/nginx/ssl/cloudflare-origin.crt
+        mode: "0644"
+      no_log: true
+
+    - name: Copy Cloudflare private key
+      ansible.builtin.copy:
+        content: "{{ lookup('ansible.builtin.env', 'CLOUDFLARE_ORIGIN_KEY') }}"
+        dest: /etc/nginx/ssl/cloudflare-origin.key
+        mode: "0600"
+      no_log: true
+
+    - name: Pull application images
+      ansible.builtin.command:
+        cmd: docker compose pull
+        chdir: /opt/ivanpashkulev
+      environment:
+        OPENAI_API_KEY: "{{ lookup('ansible.builtin.env', 'OPENAI_API_KEY') }}"
+      no_log: true
+
+    - name: Start application containers
+      ansible.builtin.command:
+        cmd: docker compose up -d --force-recreate
+        chdir: /opt/ivanpashkulev
+      environment:
+        OPENAI_API_KEY: "{{ lookup('ansible.builtin.env', 'OPENAI_API_KEY') }}"
+      no_log: true

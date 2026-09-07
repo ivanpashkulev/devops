@@ -1,4 +1,4 @@
-name: Hetzner Terraform
+name: Provision and configure Hetzner
 
 on:
   workflow_dispatch:
@@ -32,8 +32,8 @@ jobs:
     with:
       project_paths: '["terraform/hetzner"]'
 
-  terraform-hetzner:
-    name: Hetzner Terraform ${{ inputs.action }}
+  provision-and-configure-hetzner:
+    name: Hetzner infrastructure and application setup
     needs: terraform-quality
     runs-on: ubuntu-latest
     permissions:
@@ -44,29 +44,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Validate Terraform version
-        shell: bash
-        env:
-          TERRAFORM_VERSION: ${{ vars.TERRAFORM_VERSION }}
-        run: |
-          if [[ ! "$TERRAFORM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Set TERRAFORM_VERSION to an exact release version, for example 1.15.8."
-            exit 1
-          fi
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: ${{ vars.TERRAFORM_VERSION }}
-
-      - name: Authenticate AWS state backend
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: eu-central-1
-
       - name: Execute Terraform ${{ inputs.action }}
-        uses: pashkulev-devops-projects/github-actions/actions/terraform@49a95e243c794eb06e15c97924812fbdc7be1b0a
+        uses: ./.github/actions/terraform
+        with:
+          action: ${{ inputs.action }}
+          should_apply: ${{ toJSON(inputs.should_apply) }}
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          aws_role_to_assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
         env:
           HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -74,7 +58,15 @@ jobs:
           TF_VAR_gh_actions_public_ssh_key: ${{ secrets.GH_ACTIONS_PUBLIC_SSH_KEY }}
           TF_VAR_allowed_ssh_ips: ${{ vars.ALLOWED_SSH_IPS }}
           TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+
+      - name: Configure and deploy applications
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        uses: ./.github/actions/ansible
         with:
-          working_directory: terraform/hetzner
-          action: ${{ inputs.action }}
-          should_apply: ${{ toJSON(inputs.should_apply) }}
+          playbook: ansible/deploy.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
+          CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
