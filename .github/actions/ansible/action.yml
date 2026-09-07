@@ -1,0 +1,48 @@
+name: Hetzner Ansible
+description: Prepare Ansible and SSH, then execute the selected playbook.
+
+inputs:
+  playbook:
+    description: Playbook path relative to the repository root.
+    required: true
+  ssh_private_key:
+    description: SSH private key for the deployment connection.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Ansible
+      shell: bash
+      run: |
+        python3 -m venv "$RUNNER_TEMP/ansible-venv"
+        "$RUNNER_TEMP/ansible-venv/bin/python" -m pip install ansible-core requests python-dateutil
+        echo "$RUNNER_TEMP/ansible-venv/bin" >> "$GITHUB_PATH"
+
+    - name: Install Ansible collections
+      shell: bash
+      run: ansible-galaxy collection install -r ansible/requirements.yml
+
+    - name: Configure deployment SSH key
+      shell: bash
+      env:
+        SSH_PRIVATE_KEY: ${{ inputs.ssh_private_key }}
+      run: |
+        umask 077
+        printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/hetzner-ssh-key"
+
+    - name: Run Ansible playbook
+      shell: bash
+      env:
+        PLAYBOOK: ${{ inputs.playbook }}
+      run: |
+        ansible-playbook \
+          -i ansible/inventory/hetzner.hcloud.yml \
+          "$PLAYBOOK" \
+          --private-key "$RUNNER_TEMP/hetzner-ssh-key" \
+          --ssh-common-args="-o StrictHostKeyChecking=accept-new"
+
+    - name: Remove deployment SSH key
+      if: ${{ always() }}
+      shell: bash
+      run: rm -f -- "$RUNNER_TEMP/hetzner-ssh-key"

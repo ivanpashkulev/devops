@@ -3,3 +3,4 @@ assets/
 INSTRUCTIONS.md
 .DS_Store
 .terraform/
+PLAN.md

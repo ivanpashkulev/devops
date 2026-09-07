@@ -1,0 +1,5 @@
+---
+plugin: hetzner.hcloud.hcloud
+label_selector: project=ivanpashkulev-com,environment=production,managed_by=terraform
+connect_with: public_ipv4
+group: hetzner
