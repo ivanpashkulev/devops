@@ -1,0 +1,28 @@
+name: Test bootstrap GitHub App
+
+on:
+    workflow_dispatch:
+
+permissions: {}
+
+jobs:
+    test-authentication:
+        runs-on: ubuntu-latest
+
+        steps:
+          - name: Generate installation token
+            id: app-token
+            uses: actions/create-github-app-token@v3
+            with:
+                client-id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
+                private-key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
+                permission-secrets: read
+
+          - name: Verify repository secrets access
+            shell: bash
+            env:
+                GH_TOKEN: ${{ steps.app-token.outputs.token }}
+            run: |
+                gh api --paginate \
+                    "repos/$GITHUB_REPOSITORY/actions/secrets" \
+                    --jq '.secrets[].name'
