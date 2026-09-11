@@ -16,7 +16,7 @@ jobs:
             with:
                 client-id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
                 private-key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
-                permission-secrets: read
+                permission-secrets: write
 
           - name: Verify repository secrets access
             shell: bash
@@ -26,3 +26,9 @@ jobs:
                 gh api --paginate \
                     "repos/$GITHUB_REPOSITORY/actions/secrets" \
                     --jq '.secrets[].name'
+
+          - name: Bootstrap runner WireGuard key
+            uses: pashkulev-devops-projects/github-actions/actions/wireguard-key-bootstrap@cc58cc5be8247ec2f948ee9ec524c47e277307f1
+            with:
+                github_token: ${{ steps.app-token.outputs.token }}
+                private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
