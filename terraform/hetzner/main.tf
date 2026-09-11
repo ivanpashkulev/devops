@@ -50,6 +50,13 @@ module "firewall" {
     },
     {
       direction   = "in"
+      protocol    = "udp"
+      port        = "51820"
+      source_ips  = ["0.0.0.0/0"]
+      description = "Allow authenticated WireGuard connections"
+    },
+    {
+      direction   = "in"
       protocol    = "tcp"
       port        = "80"
       source_ips  = data.cloudflare_ip_ranges.this.ipv4_cidrs
