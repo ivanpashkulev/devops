@@ -71,7 +71,7 @@ jobs:
       - name: Bootstrap runner WireGuard key
         if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
         id: wireguard-bootstrap
-        uses: pashkulev-devops-projects/github-actions/actions/wireguard-key-bootstrap@cc58cc5be8247ec2f948ee9ec524c47e277307f1
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/key-bootstrap@5127817c7871db733c504170abca25962a693385
         with:
           github_token: ${{ steps.bootstrap-token.outputs.token }}
           private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
@@ -87,3 +87,81 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
           CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
+          WIREGUARD_RUNNER_PUBLIC_KEY: ${{ steps.wireguard-bootstrap.outputs.public_key }}
+
+      - name: Store WireGuard server public key
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.bootstrap-token.outputs.token }}
+        run: |
+          gh secret set WIREGUARD_SERVER_PUBLIC_KEY \
+            --repo "$GITHUB_REPOSITORY" \
+            < "$RUNNER_TEMP/wireguard-server-public-key"
+
+      - name: Read WireGuard connection details
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        id: wireguard-server
+        shell: bash
+        run: |
+          IFS= read -r server_public_key \
+            < "$RUNNER_TEMP/wireguard-server-public-key"
+
+          server_endpoint=$(
+            terraform -chdir=terraform/hetzner \
+              output -raw wireguard_server_endpoint
+          )
+
+          printf 'server_public_key=%s\n' "$server_public_key" >> "$GITHUB_OUTPUT"
+          printf 'server_endpoint=%s\n' "$server_endpoint" >> "$GITHUB_OUTPUT"
+
+      - name: Connect runner to WireGuard
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        id: wireguard-connect
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@5127817c7871db733c504170abca25962a693385
+        with:
+          private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+          server_public_key: ${{ steps.wireguard-server.outputs.server_public_key }}
+          server_endpoint: ${{ steps.wireguard-server.outputs.server_endpoint }}
+
+      - name: Configure WireGuard SSH verification key
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+        run: |
+          umask 077
+          printf '%s\n' "$SSH_PRIVATE_KEY" \
+            > "$RUNNER_TEMP/wireguard-ssh-key"
+
+      - name: Verify SSH over WireGuard
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        shell: bash
+        run: |
+          ssh \
+            -i "$RUNNER_TEMP/wireguard-ssh-key" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile="$RUNNER_TEMP/wireguard-known-hosts" \
+            root@10.100.0.1 \
+            hostname
+
+      - name: Remove WireGuard SSH verification files
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f -- \
+            "$RUNNER_TEMP/wireguard-ssh-key" \
+            "$RUNNER_TEMP/wireguard-known-hosts"
+
+      - name: Disconnect runner from WireGuard
+        if: ${{ always() && inputs.action == 'Provision' && inputs.should_apply }}
+        shell: bash
+        run: |
+          if sudo wg show wg0 > /dev/null 2>&1; then
+            sudo wg-quick down "$RUNNER_TEMP/wg0.conf"
+          fi
+
+          rm -f -- "$RUNNER_TEMP/wg0.conf"
