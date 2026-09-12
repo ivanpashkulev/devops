@@ -8,6 +8,11 @@ output "ansible_target_public_ips" {
   description = "Public IPv4 addresses used by Ansible."
 }
 
+output "wireguard_server_endpoint" {
+  value       = one(module.servers.public_ipv4_addresses)
+  description = "Public IPv4 endpoint of the WireGuard server."
+}
+
 output "public_ipv6_addresses" {
   value       = module.servers.public_ipv6_addresses
   description = "Public IPv6 addresses assigned to the production servers."
