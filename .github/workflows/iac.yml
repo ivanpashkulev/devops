@@ -71,8 +71,8 @@ jobs:
           private-key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
-          permission-secrets: write
-          permission-variables: write
+          # permission-secrets: write
+          # permission-variables: write
 
       - name: Store Turnstile widget keys
         if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
