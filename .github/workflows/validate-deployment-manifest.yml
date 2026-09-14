@@ -1,0 +1,23 @@
+name: Validate deployment manifest
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate-compose:
+    name: Validate Docker Compose configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate Docker Compose configuration
+        env:
+          OPENAI_API_KEY: validation-only
+        run: docker compose config --quiet
