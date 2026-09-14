@@ -83,6 +83,7 @@ jobs:
           echo "Updated image to ${EXPECTED_IMAGE}"
 
       - name: Create deployment PR
+        id: deployment-pr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.DEVOPS_TOKEN }}
@@ -96,3 +97,15 @@ jobs:
 
             **Image:** `${{ env.IMAGE }}:${{ env.TAG }}`
             **Source:** `${{ github.repository }}@${{ env.TAG }}`
+
+      - name: Enable automatic merge
+        if: ${{ steps.deployment-pr.outputs.pull-request-number }}
+        env:
+          GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
+          PR_NUMBER: ${{ steps.deployment-pr.outputs.pull-request-number }}
+        run: |
+          gh pr merge "$PR_NUMBER" \
+            --repo ivanpashkulev/devops \
+            --auto \
+            --squash \
+            --delete-branch
