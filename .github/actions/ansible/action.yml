@@ -5,6 +5,9 @@ inputs:
   playbook:
     description: Playbook path relative to the repository root.
     required: true
+  inventory:
+    description: Inventory path relative to the repository root.
+    required: true
   ssh_private_key:
     description: SSH private key for the deployment connection.
     required: true
@@ -35,9 +38,10 @@ runs:
       shell: bash
       env:
         PLAYBOOK: ${{ inputs.playbook }}
+        INVENTORY: ${{ inputs.inventory }}
       run: |
         ansible-playbook \
-          -i ansible/inventory/hetzner.hcloud.yml \
+          -i "$INVENTORY" \
           "$PLAYBOOK" \
           --private-key "$RUNNER_TEMP/hetzner-ssh-key" \
           --ssh-common-args="-o StrictHostKeyChecking=accept-new"

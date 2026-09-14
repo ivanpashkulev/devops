@@ -1,0 +1,8 @@
+---
+all:
+  children:
+    hetzner:
+      hosts:
+        ivanpashkulev-production-1:
+          ansible_host: 10.100.0.1
+          ansible_user: root
