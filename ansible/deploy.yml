@@ -63,6 +63,10 @@
         chdir: /opt/ivanpashkulev
       environment:
         OPENAI_API_KEY: "{{ lookup('ansible.builtin.env', 'OPENAI_API_KEY') }}"
+        OPENAI_MAX_OUTPUT_TOKENS: "{{ lookup('ansible.builtin.env', 'OPENAI_MAX_OUTPUT_TOKENS') }}"
+        CHAT_RATE_LIMIT_PER_DAY: "{{ lookup('ansible.builtin.env', 'CHAT_RATE_LIMIT_PER_DAY') }}"
+        CHAT_MAX_MESSAGE_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_MESSAGE_CHARACTERS') }}"
+        CHAT_MAX_HISTORY_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_HISTORY_CHARACTERS') }}"
       no_log: true
 
     - name: Start application containers
@@ -71,4 +75,8 @@
         chdir: /opt/ivanpashkulev
       environment:
         OPENAI_API_KEY: "{{ lookup('ansible.builtin.env', 'OPENAI_API_KEY') }}"
+        OPENAI_MAX_OUTPUT_TOKENS: "{{ lookup('ansible.builtin.env', 'OPENAI_MAX_OUTPUT_TOKENS') }}"
+        CHAT_RATE_LIMIT_PER_DAY: "{{ lookup('ansible.builtin.env', 'CHAT_RATE_LIMIT_PER_DAY') }}"
+        CHAT_MAX_MESSAGE_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_MESSAGE_CHARACTERS') }}"
+        CHAT_MAX_HISTORY_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_HISTORY_CHARACTERS') }}"
       no_log: true

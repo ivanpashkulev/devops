@@ -4,6 +4,10 @@ data "http" "runner_public_ip" {
 
 data "cloudflare_ip_ranges" "this" {}
 
+data "cloudflare_zone" "this" {
+  zone_id = var.cloudflare_zone_id
+}
+
 locals {
   common_labels = {
     project     = "ivanpashkulev-com"
@@ -120,4 +124,12 @@ module "dns_records" {
 
   zone_id = var.cloudflare_zone_id
   records = local.cloudflare_records
+}
+
+resource "cloudflare_turnstile_widget" "chat" {
+  account_id = data.cloudflare_zone.this.account.id
+  name       = "ivanpashkulev.com chat"
+  domains    = ["ivanpashkulev.com"]
+  mode       = "managed"
+  region     = "world"
 }

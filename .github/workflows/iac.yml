@@ -72,6 +72,23 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           permission-secrets: write
+          permission-variables: write
+
+      - name: Store Turnstile widget keys
+        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.bootstrap-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          terraform -chdir=terraform/hetzner \
+            output -raw turnstile_secret_key |
+            gh secret set TURNSTILE_SECRET_KEY --repo "$GITHUB_REPOSITORY"
+
+          terraform -chdir=terraform/hetzner \
+            output -raw turnstile_site_key |
+            gh variable set TURNSTILE_SITE_KEY --repo "$GITHUB_REPOSITORY"
 
       - name: Bootstrap runner WireGuard key
         if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
@@ -145,6 +162,10 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
           CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
+          OPENAI_MAX_OUTPUT_TOKENS: ${{ vars.OPENAI_MAX_OUTPUT_TOKENS }}
+          CHAT_RATE_LIMIT_PER_DAY: ${{ vars.CHAT_RATE_LIMIT_PER_DAY }}
+          CHAT_MAX_MESSAGE_CHARACTERS: ${{ vars.CHAT_MAX_MESSAGE_CHARACTERS }}
+          CHAT_MAX_HISTORY_CHARACTERS: ${{ vars.CHAT_MAX_HISTORY_CHARACTERS }}
 
       - name: Disconnect runner from WireGuard
         if: ${{ always() }}
