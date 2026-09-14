@@ -32,10 +32,13 @@ jobs:
     with:
       project_paths: '["terraform/hetzner"]'
 
-  provision-and-configure-hetzner:
-    name: Hetzner infrastructure and application setup
+  provision-and-bootstrap-wireguard:
+    name: Provision Hetzner and bootstrap WireGuard
     needs: terraform-quality
     runs-on: ubuntu-latest
+    outputs:
+      wireguard_server_public_key: ${{ steps.wireguard-server.outputs.server_public_key }}
+      wireguard_server_endpoint: ${{ steps.wireguard-server.outputs.server_endpoint }}
     permissions:
       contents: read
       id-token: write
@@ -59,13 +62,15 @@ jobs:
           TF_VAR_allowed_ssh_ips: ${{ vars.ALLOWED_SSH_IPS }}
           TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
 
-      - name: Authenticate bootstrap GitHub App
+      - name: Authenticate ivanpashkulev-devops-bootstrap GitHub App
         if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
         id: bootstrap-token
         uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
           permission-secrets: write
 
       - name: Bootstrap runner WireGuard key
@@ -76,17 +81,15 @@ jobs:
           github_token: ${{ steps.bootstrap-token.outputs.token }}
           private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
 
-      - name: Configure and deploy applications
+      - name: Bootstrap WireGuard server
         if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
         uses: ./.github/actions/ansible
         with:
-          playbook: ansible/deploy.yml
+          playbook: ansible/bootstrap-wireguard.yml
+          inventory: ansible/inventory/hetzner.hcloud.yml
           ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
         env:
           HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
-          CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
           WIREGUARD_RUNNER_PUBLIC_KEY: ${{ steps.wireguard-bootstrap.outputs.public_key }}
 
       - name: Store WireGuard server public key
@@ -115,49 +118,36 @@ jobs:
           printf 'server_public_key=%s\n' "$server_public_key" >> "$GITHUB_OUTPUT"
           printf 'server_endpoint=%s\n' "$server_endpoint" >> "$GITHUB_OUTPUT"
 
+  configure-and-deploy-through-wireguard:
+    name: Configure and deploy through WireGuard
+    needs: provision-and-bootstrap-wireguard
+    if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
       - name: Connect runner to WireGuard
-        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
-        id: wireguard-connect
         uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@5127817c7871db733c504170abca25962a693385
         with:
           private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
-          server_public_key: ${{ steps.wireguard-server.outputs.server_public_key }}
-          server_endpoint: ${{ steps.wireguard-server.outputs.server_endpoint }}
+          server_public_key: ${{ needs.provision-and-bootstrap-wireguard.outputs.wireguard_server_public_key }}
+          server_endpoint: ${{ needs.provision-and-bootstrap-wireguard.outputs.wireguard_server_endpoint }}
 
-      - name: Configure WireGuard SSH verification key
-        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
-        shell: bash
+      - name: Configure and deploy applications
+        uses: ./.github/actions/ansible
+        with:
+          playbook: ansible/deploy.yml
+          inventory: ansible/inventory/hetzner.wireguard.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
-        run: |
-          umask 077
-          printf '%s\n' "$SSH_PRIVATE_KEY" \
-            > "$RUNNER_TEMP/wireguard-ssh-key"
-
-      - name: Verify SSH over WireGuard
-        if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
-        shell: bash
-        run: |
-          ssh \
-            -i "$RUNNER_TEMP/wireguard-ssh-key" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=10 \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new \
-            -o UserKnownHostsFile="$RUNNER_TEMP/wireguard-known-hosts" \
-            root@10.100.0.1 \
-            hostname
-
-      - name: Remove WireGuard SSH verification files
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          rm -f -- \
-            "$RUNNER_TEMP/wireguard-ssh-key" \
-            "$RUNNER_TEMP/wireguard-known-hosts"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
+          CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
 
       - name: Disconnect runner from WireGuard
-        if: ${{ always() && inputs.action == 'Provision' && inputs.should_apply }}
+        if: ${{ always() }}
         shell: bash
         run: |
           if sudo wg show wg0 > /dev/null 2>&1; then
