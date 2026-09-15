@@ -24,4 +24,6 @@ jobs:
           CHAT_RATE_LIMIT_PER_DAY: "10"
           CHAT_MAX_MESSAGE_CHARACTERS: "1000"
           CHAT_MAX_HISTORY_CHARACTERS: "4000"
+          TURNSTILE_SECRET_KEY: validation-only
+          TURNSTILE_SITE_KEY: validation-only
         run: docker compose config --quiet
