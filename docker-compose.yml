@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/ivanpashkulev/web-main:f83c24121e8bcb13fa9c7e1faf692634527b8f08
+    image: ghcr.io/ivanpashkulev/web-main:b736241af27f9842c1f45e022d6700c9c20d7404
     container_name: web-main
     restart: unless-stopped
     environment:
