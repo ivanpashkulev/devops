@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       - VITE_API_URL=/api
+      - VITE_TURNSTILE_SITE_KEY=${TURNSTILE_SITE_KEY:?TURNSTILE_SITE_KEY is required}
     depends_on:
       - api
 
@@ -20,6 +21,8 @@ services:
       CHAT_MAX_MESSAGE_CHARACTERS: ${CHAT_MAX_MESSAGE_CHARACTERS:?CHAT_MAX_MESSAGE_CHARACTERS is required}
       CHAT_MAX_HISTORY_CHARACTERS: ${CHAT_MAX_HISTORY_CHARACTERS:?CHAT_MAX_HISTORY_CHARACTERS is required}
       REDIS_URL: redis://redis:6379/0
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:?TURNSTILE_SECRET_KEY is required}
+      TURNSTILE_EXPECTED_HOSTNAME: ivanpashkulev.com
     depends_on:
       redis:
         condition: service_healthy

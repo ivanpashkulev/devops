@@ -67,6 +67,8 @@
         CHAT_RATE_LIMIT_PER_DAY: "{{ lookup('ansible.builtin.env', 'CHAT_RATE_LIMIT_PER_DAY') }}"
         CHAT_MAX_MESSAGE_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_MESSAGE_CHARACTERS') }}"
         CHAT_MAX_HISTORY_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_HISTORY_CHARACTERS') }}"
+        TURNSTILE_SECRET_KEY: "{{ lookup('ansible.builtin.env', 'TURNSTILE_SECRET_KEY') }}"
+        TURNSTILE_SITE_KEY: "{{ lookup('ansible.builtin.env', 'TURNSTILE_SITE_KEY') }}"
       no_log: true
 
     - name: Start application containers
@@ -79,4 +81,6 @@
         CHAT_RATE_LIMIT_PER_DAY: "{{ lookup('ansible.builtin.env', 'CHAT_RATE_LIMIT_PER_DAY') }}"
         CHAT_MAX_MESSAGE_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_MESSAGE_CHARACTERS') }}"
         CHAT_MAX_HISTORY_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_HISTORY_CHARACTERS') }}"
+        TURNSTILE_SECRET_KEY: "{{ lookup('ansible.builtin.env', 'TURNSTILE_SECRET_KEY') }}"
+        TURNSTILE_SITE_KEY: "{{ lookup('ansible.builtin.env', 'TURNSTILE_SITE_KEY') }}"
       no_log: true

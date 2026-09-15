@@ -166,6 +166,8 @@ jobs:
           CHAT_RATE_LIMIT_PER_DAY: ${{ vars.CHAT_RATE_LIMIT_PER_DAY }}
           CHAT_MAX_MESSAGE_CHARACTERS: ${{ vars.CHAT_MAX_MESSAGE_CHARACTERS }}
           CHAT_MAX_HISTORY_CHARACTERS: ${{ vars.CHAT_MAX_HISTORY_CHARACTERS }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
 
       - name: Disconnect runner from WireGuard
         if: ${{ always() }}
