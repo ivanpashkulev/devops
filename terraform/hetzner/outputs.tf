@@ -23,13 +23,3 @@ output "dns_record_names" {
   description = "Cloudflare DNS records pointing to the production servers."
 }
 
-output "turnstile_site_key" {
-  value       = cloudflare_turnstile_widget.chat.sitekey
-  description = "Public site key used to render the Turnstile widget."
-}
-
-output "turnstile_secret_key" {
-  value       = cloudflare_turnstile_widget.chat.secret
-  description = "Secret key used by the API to validate Turnstile tokens."
-  sensitive   = true
-}
