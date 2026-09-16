@@ -1,0 +1,73 @@
+name: Deploy applications
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hetzner-ivanpashkulev-com
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy through WireGuard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve WireGuard server endpoint
+        id: server
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+        run: |
+          endpoint=$(
+            curl --fail --silent --show-error \
+              --header "Authorization: Bearer $HCLOUD_TOKEN" \
+              "https://api.hetzner.cloud/v1/servers?name=ivanpashkulev-production-1" \
+            | jq --exit-status --raw-output '
+                .servers
+                | if length == 1
+                  then .[0].public_net.ipv4.ip
+                  else error("Expected exactly one deployment server")
+                  end
+              '
+          )
+
+          printf 'endpoint=%s\n' "$endpoint" >> "$GITHUB_OUTPUT"
+
+      - name: Connect runner to WireGuard
+        id: wireguard
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@5127817c7871db733c504170abca25962a693385
+        with:
+          private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+          server_public_key: ${{ secrets.WIREGUARD_SERVER_PUBLIC_KEY }}
+          server_endpoint: ${{ steps.server.outputs.endpoint }}
+
+      - name: Deploy application containers
+        uses: ./.github/actions/ansible
+        with:
+          playbook: ansible/deploy-applications.yml
+          inventory: ansible/inventory/hetzner.wireguard.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MAX_OUTPUT_TOKENS: ${{ vars.OPENAI_MAX_OUTPUT_TOKENS }}
+          CHAT_RATE_LIMIT_PER_DAY: ${{ vars.CHAT_RATE_LIMIT_PER_DAY }}
+          CHAT_MAX_MESSAGE_CHARACTERS: ${{ vars.CHAT_MAX_MESSAGE_CHARACTERS }}
+          CHAT_MAX_HISTORY_CHARACTERS: ${{ vars.CHAT_MAX_HISTORY_CHARACTERS }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+
+      - name: Disconnect runner from WireGuard
+        if: ${{ always() && steps.wireguard.outcome == 'success' }}
+        shell: bash
+        env:
+          CONFIGURATION_FILE: ${{ steps.wireguard.outputs.configuration_file }}
+        run: |
+          sudo wg-quick down "$CONFIGURATION_FILE"
+          rm -f -- "$CONFIGURATION_FILE"
