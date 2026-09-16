@@ -1,0 +1,36 @@
+---
+- name: Deploy applications on Hetzner
+  hosts: hetzner
+  remote_user: root
+  gather_facts: false
+
+  vars:
+    compose_environment:
+      OPENAI_API_KEY: "{{ lookup('ansible.builtin.env', 'OPENAI_API_KEY') }}"
+      OPENAI_MAX_OUTPUT_TOKENS: "{{ lookup('ansible.builtin.env', 'OPENAI_MAX_OUTPUT_TOKENS') }}"
+      CHAT_RATE_LIMIT_PER_DAY: "{{ lookup('ansible.builtin.env', 'CHAT_RATE_LIMIT_PER_DAY') }}"
+      CHAT_MAX_MESSAGE_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_MESSAGE_CHARACTERS') }}"
+      CHAT_MAX_HISTORY_CHARACTERS: "{{ lookup('ansible.builtin.env', 'CHAT_MAX_HISTORY_CHARACTERS') }}"
+      TURNSTILE_SECRET_KEY: "{{ lookup('ansible.builtin.env', 'TURNSTILE_SECRET_KEY') }}"
+      TURNSTILE_SITE_KEY: "{{ lookup('ansible.builtin.env', 'TURNSTILE_SITE_KEY') }}"
+
+  tasks:
+    - name: Copy Compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../docker-compose.yml"
+        dest: /opt/ivanpashkulev/docker-compose.yml
+        mode: "0644"
+
+    - name: Pull application images
+      ansible.builtin.command:
+        cmd: docker compose pull
+        chdir: /opt/ivanpashkulev
+      environment: "{{ compose_environment }}"
+      no_log: true
+
+    - name: Recreate application containers
+      ansible.builtin.command:
+        cmd: docker compose up -d --force-recreate
+        chdir: /opt/ivanpashkulev
+      environment: "{{ compose_environment }}"
+      no_log: true

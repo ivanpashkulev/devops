@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: terraform-hetzner-ivanpashkulev-com
+  group: hetzner-ivanpashkulev-com
   cancel-in-progress: false
 
 jobs:
