@@ -1,0 +1,92 @@
+name: Provision Azure platform
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Terraform operation
+        required: true
+        default: Provision
+        type: choice
+        options:
+          - Provision
+          - Destroy
+
+      should_apply:
+        description: Apply the generated Terraform plan?
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-platform-ivanpashkulev-com
+  cancel-in-progress: false
+
+jobs:
+  terraform-quality:
+    name: Terraform quality and security checks
+    uses: pashkulev-devops-projects/github-actions/.github/workflows/terraform-quality.yml@fba02608b604b8b642a1ba3440e0aa34e2b27be0
+    with:
+      project_paths: '["terraform/azure-platform"]'
+
+  terraform:
+    name: Terraform Azure platform
+    needs: terraform-quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_location: ${{ vars.AZURE_LOCATION }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate Terraform version
+        shell: bash
+        env:
+          TERRAFORM_VERSION: ${{ vars.TERRAFORM_VERSION }}
+        run: |
+          if [[ ! "$TERRAFORM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Set TERRAFORM_VERSION to an exact release version."
+            exit 1
+          fi
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Authenticate Azure through OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Execute Terraform ${{ inputs.action }}
+        uses: pashkulev-devops-projects/github-actions/actions/terraform@49a95e243c794eb06e15c97924812fbdc7be1b0a
+        with:
+          working_directory: terraform/azure-platform
+          action: ${{ inputs.action }}
+          should_apply: ${{ toJSON(inputs.should_apply) }}
+
+  publish-configuration:
+    name: Publish Azure configuration
+    needs: terraform
+    if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-azure-configuration.yml
+    secrets: inherit

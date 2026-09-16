@@ -1,0 +1,144 @@
+name: Publish Azure configuration
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-configuration-ivanpashkulev-com
+  cancel-in-progress: false
+
+env:
+  APP_CONFIGURATION_NAME: ivanpashkulev-prod-app-config
+  APP_CONFIGURATION_LABEL: prod
+  KEY_VAULT_NAME: ivanpashkulev-prod-kv
+
+jobs:
+  publish:
+    name: Publish configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate Azure through OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Store application secrets in Key Vault
+        shell: bash
+        env:
+          KV_SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          KV_SECRET_TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+        run: |
+          for variable_name in "${!KV_SECRET_@}"; do
+            # Remove the prefix, convert to lowercase, and replace underscores with hyphens.
+            secret_name="$(echo "$variable_name" \
+              | sed 's/^KV_SECRET_//' \
+              | tr '[:upper:]_' '[:lower:]-')"
+
+            az keyvault secret set \
+              --vault-name "$KEY_VAULT_NAME" \
+              --name "$secret_name" \
+              --value "${!variable_name}" \
+              --only-show-errors \
+              --output none
+          done
+
+      - name: Store Cloudflare certificate in Key Vault
+        shell: bash
+        env:
+          CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
+          CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
+        run: |
+          # Allow only the current user to access newly created files.
+          umask 077
+
+          certificate_file="$RUNNER_TEMP/cloudflare-origin.pem"
+
+          # Delete the temporary certificate file when the step finishes or fails.
+          trap 'rm -f -- "$certificate_file"' EXIT
+
+          {
+            echo "$CLOUDFLARE_ORIGIN_CERT"
+            echo "$CLOUDFLARE_ORIGIN_KEY"
+          } > "$certificate_file"
+
+          az keyvault certificate import \
+            --vault-name "$KEY_VAULT_NAME" \
+            --name "cloudflare-origin" \
+            --file "$certificate_file" \
+            --only-show-errors \
+            --output none
+
+      - name: Store application values in App Configuration
+        shell: bash
+        env:
+          APP_CONFIG_API__OPENAI__MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }}
+          APP_CONFIG_API__OPENAI__MAX_OUTPUT_TOKENS: ${{ vars.OPENAI_MAX_OUTPUT_TOKENS }}
+          APP_CONFIG_API__CHAT__RATE_LIMIT_PER_DAY: ${{ vars.CHAT_RATE_LIMIT_PER_DAY }}
+          APP_CONFIG_API__CHAT__MAX_MESSAGE_CHARACTERS: ${{ vars.CHAT_MAX_MESSAGE_CHARACTERS }}
+          APP_CONFIG_API__CHAT__MAX_HISTORY_CHARACTERS: ${{ vars.CHAT_MAX_HISTORY_CHARACTERS }}
+          APP_CONFIG_WEB__TURNSTILE__SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+        run: |
+          for variable_name in "${!APP_CONFIG_@}"; do
+            # Remove the prefix, convert to lowercase, and replace double underscores with colons.
+            key_suffix="$(echo "$variable_name" \
+              | sed 's/^APP_CONFIG_//' \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed 's/__/:/g')"
+
+            az appconfig kv set \
+              --name "$APP_CONFIGURATION_NAME" \
+              --auth-mode login \
+              --key "ivanpashkulev:$key_suffix" \
+              --label "$APP_CONFIGURATION_LABEL" \
+              --value "${!variable_name}" \
+              --yes \
+              --only-show-errors \
+              --output none
+          done
+
+      - name: Store Key Vault references in App Configuration
+        shell: bash
+        env:
+          APP_CONFIG_REFERENCE_API__OPENAI__API_KEY: openai-api-key
+          APP_CONFIG_REFERENCE_API__TURNSTILE__SECRET_KEY: turnstile-secret-key
+        run: |
+          for variable_name in "${!APP_CONFIG_REFERENCE_@}"; do
+            # Convert the environment variable name to its App Configuration key.
+            key_suffix="$(echo "$variable_name" \
+              | sed 's/^APP_CONFIG_REFERENCE_//' \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed 's/__/:/g')"
+
+            secret_name="${!variable_name}"
+
+            az appconfig kv set-keyvault \
+              --name "$APP_CONFIGURATION_NAME" \
+              --auth-mode login \
+              --key "ivanpashkulev:$key_suffix" \
+              --label "$APP_CONFIGURATION_LABEL" \
+              --secret-identifier "https://$KEY_VAULT_NAME.vault.azure.net/secrets/$secret_name" \
+              --yes \
+              --only-show-errors \
+              --output none
+          done
+
+      - name: Publish configuration sentinel
+        shell: bash
+        run: |
+          az appconfig kv set \
+            --name "$APP_CONFIGURATION_NAME" \
+            --auth-mode login \
+            --key "ivanpashkulev:configuration:sentinel" \
+            --label "$APP_CONFIGURATION_LABEL" \
+            --value "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --yes \
+            --only-show-errors \
+            --output none
