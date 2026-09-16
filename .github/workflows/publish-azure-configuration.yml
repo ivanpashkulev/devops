@@ -86,6 +86,7 @@ jobs:
             --vault-name "$KEY_VAULT_NAME" \
             --name "cloudflare-origin" \
             --file "$certificate_file" \
+            --policy '{"x509_certificate_properties":{"key_usage":["digitalSignature"]}}' \
             --only-show-errors \
             --output none
 
