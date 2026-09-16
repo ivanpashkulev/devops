@@ -29,6 +29,10 @@ module "app_configuration" {
       principal_id         = data.azurerm_client_config.current.object_id
       role_definition_name = "App Configuration Data Owner"
     }
+    azure_admin_configuration_owner = {
+      principal_id         = var.azure_admin_object_id
+      role_definition_name = "App Configuration Data Owner"
+    }
   }
 
   tags = local.common_tags
