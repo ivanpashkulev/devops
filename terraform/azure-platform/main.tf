@@ -35,7 +35,7 @@ module "app_configuration" {
 }
 
 module "key_vault" {
-  source = "git::https://github.com/pashkulev-devops-projects/terraform-modules.git//azure/key-vault?ref=v0.3.0"
+  source = "git::https://github.com/pashkulev-devops-projects/terraform-modules.git//azure/key-vault?ref=v0.4.0"
 
   name                = "${local.resource_name_prefix}-kv"
   resource_group_name = azurerm_resource_group.this.name

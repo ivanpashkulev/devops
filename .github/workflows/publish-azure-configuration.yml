@@ -30,6 +30,19 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Allow runner access to Key Vault
+        id: key_vault_firewall
+        shell: bash
+        run: |
+          runner_ip="$(curl --fail --silent --show-error https://api.ipify.org)"
+          echo "runner_ip=$runner_ip" >> "$GITHUB_OUTPUT"
+
+          az keyvault network-rule add \
+            --name "$KEY_VAULT_NAME" \
+            --ip-address "$runner_ip" \
+            --only-show-errors \
+            --output none
+
       - name: Store application secrets in Key Vault
         shell: bash
         env:
@@ -73,6 +86,18 @@ jobs:
             --vault-name "$KEY_VAULT_NAME" \
             --name "cloudflare-origin" \
             --file "$certificate_file" \
+            --only-show-errors \
+            --output none
+
+      - name: Remove runner access from Key Vault
+        if: ${{ always() && steps.key_vault_firewall.outputs.runner_ip != '' }}
+        shell: bash
+        env:
+          RUNNER_IP: ${{ steps.key_vault_firewall.outputs.runner_ip }}
+        run: |
+          az keyvault network-rule remove \
+            --name "$KEY_VAULT_NAME" \
+            --ip-address "$RUNNER_IP" \
             --only-show-errors \
             --output none
 
