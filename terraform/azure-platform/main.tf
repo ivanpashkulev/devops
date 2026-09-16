@@ -45,6 +45,10 @@ module "key_vault" {
   purge_protection_enabled   = false
   soft_delete_retention_days = 7
 
+  network_acls = {
+    ip_rules = var.key_vault_allowed_ip_addresses
+  }
+
   role_assignments = {
     github_secrets_publisher = {
       principal_id         = data.azurerm_client_config.current.object_id
@@ -53,6 +57,14 @@ module "key_vault" {
     github_certificates_publisher = {
       principal_id         = data.azurerm_client_config.current.object_id
       role_definition_name = "Key Vault Certificates Officer"
+    }
+    azure_admin_secrets_reader = {
+      principal_id         = var.azure_admin_object_id
+      role_definition_name = "Key Vault Secrets User"
+    }
+    azure_admin_certificate_reader = {
+      principal_id         = var.azure_admin_object_id
+      role_definition_name = "Key Vault Certificate User"
     }
   }
 
