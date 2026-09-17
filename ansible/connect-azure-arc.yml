@@ -1,0 +1,18 @@
+---
+- name: Connect Hetzner server to Azure Arc
+  hosts: hetzner
+  remote_user: root
+  gather_facts: false
+
+  tasks:
+    - name: Connect the server to Azure Arc
+      ansible.builtin.include_role:
+        name: pashkulev.infrastructure.azure_arc
+        tasks_from: connect
+      vars:
+        azure_arc_access_token: "{{ lookup('ansible.builtin.env', 'AZURE_ACCESS_TOKEN') }}"
+        azure_arc_tenant_id: "{{ lookup('ansible.builtin.env', 'AZURE_TENANT_ID') }}"
+        azure_arc_subscription_id: "{{ lookup('ansible.builtin.env', 'AZURE_SUBSCRIPTION_ID') }}"
+        azure_arc_resource_group: "{{ lookup('ansible.builtin.env', 'AZURE_ARC_RESOURCE_GROUP') }}"
+        azure_arc_machine_name: "{{ lookup('ansible.builtin.env', 'AZURE_ARC_MACHINE_NAME') }}"
+        azure_arc_location: "{{ lookup('ansible.builtin.env', 'AZURE_LOCATION') }}"

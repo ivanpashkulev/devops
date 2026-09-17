@@ -1,0 +1,13 @@
+---
+- name: Disconnect Hetzner server from Azure Arc
+  hosts: hetzner
+  remote_user: root
+  gather_facts: false
+
+  tasks:
+    - name: Disconnect the server from Azure Arc
+      ansible.builtin.include_role:
+        name: pashkulev.infrastructure.azure_arc
+        tasks_from: disconnect
+      vars:
+        azure_arc_access_token: "{{ lookup('ansible.builtin.env', 'AZURE_ACCESS_TOKEN') }}"
