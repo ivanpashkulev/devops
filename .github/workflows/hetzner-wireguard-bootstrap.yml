@@ -2,6 +2,10 @@ name: Hetzner WireGuard Bootstrap for ivanpashkulev.com
 
 on:
   workflow_call:
+    outputs:
+      wireguard_server_public_key:
+        description: WireGuard server public key.
+        value: ${{ jobs.bootstrap-wireguard.outputs.wireguard_server_public_key }}
     secrets:
       HETZNER_API_TOKEN:
         required: true
@@ -21,6 +25,8 @@ jobs:
   bootstrap-wireguard:
     name: Bootstrap WireGuard
     runs-on: ubuntu-26.04
+    outputs:
+      wireguard_server_public_key: ${{ steps.wireguard-server.outputs.public_key }}
 
     steps:
       - name: Check out repository
@@ -85,6 +91,15 @@ jobs:
           gh secret set WIREGUARD_SERVER_PUBLIC_KEY \
             --repo "$GITHUB_REPOSITORY" \
             < "$RUNNER_TEMP/wireguard-server-public-key"
+
+      - name: Read WireGuard server public key
+        id: wireguard-server
+        shell: bash
+        run: |
+          IFS= read -r public_key \
+            < "$RUNNER_TEMP/wireguard-server-public-key"
+
+          printf 'public_key=%s\n' "$public_key" >> "$GITHUB_OUTPUT"
 
       - name: Remove temporary SSH access
         if: ${{ always() }}

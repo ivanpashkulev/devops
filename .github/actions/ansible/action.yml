@@ -3,7 +3,7 @@ description: Prepare Ansible and SSH, then execute the selected playbook.
 
 inputs:
   playbook:
-    description: Playbook path or fully qualified collection name.
+    description: Playbook path or fully qualified collection name (FQCN).
     required: true
   inventory:
     description: Inventory path relative to the repository root.
