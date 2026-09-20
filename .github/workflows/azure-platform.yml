@@ -1,4 +1,4 @@
-name: IaC Azure Infrastructure
+name: IaC Azure Infrastructure for ivanpashkulev.com
 
 on:
   workflow_dispatch:

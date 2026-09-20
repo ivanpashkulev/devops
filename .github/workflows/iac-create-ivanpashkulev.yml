@@ -1,4 +1,4 @@
-name: IaC Create ivanpashkulev
+name: IaC Create ivanpashkulev on Hetzner
 
 on:
   workflow_dispatch:

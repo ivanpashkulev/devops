@@ -1,4 +1,4 @@
-name: Deploy applications
+name: Deploy ivanpashkulev applications
 
 on:
   workflow_dispatch:
