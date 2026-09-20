@@ -28,6 +28,7 @@ jobs:
       id-token: write
 
   bootstrap-wireguard:
+    name: Bootstrap WireGuard server
     needs: provision
     uses: ./.github/workflows/hetzner-wireguard-bootstrap.yml
     secrets:
