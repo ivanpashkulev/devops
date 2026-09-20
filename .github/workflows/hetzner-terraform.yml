@@ -1,4 +1,4 @@
-name: Hetzner Terraform
+name: Hetzner Terraform Reusable Workflow for ivanpashkulev.com
 
 on:
   workflow_call:

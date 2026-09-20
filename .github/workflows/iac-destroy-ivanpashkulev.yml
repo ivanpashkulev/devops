@@ -1,4 +1,4 @@
-name: IaC Destroy ivanpashkulev
+name: IaC Destroy ivanpashkulev on Hetzner
 
 on:
   workflow_dispatch:
