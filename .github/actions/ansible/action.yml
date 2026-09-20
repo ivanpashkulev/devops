@@ -3,7 +3,7 @@ description: Prepare Ansible and SSH, then execute the selected playbook.
 
 inputs:
   playbook:
-    description: Playbook path relative to the repository root.
+    description: Playbook path or fully qualified collection name.
     required: true
   inventory:
     description: Inventory path relative to the repository root.
@@ -11,6 +11,9 @@ inputs:
   ssh_private_key:
     description: SSH private key for the deployment connection.
     required: true
+  extra_variables:
+    description: JSON object forwarded to Ansible as --extra-vars.
+    default: ""
 
 runs:
   using: composite
@@ -39,12 +42,20 @@ runs:
       env:
         PLAYBOOK: ${{ inputs.playbook }}
         INVENTORY: ${{ inputs.inventory }}
+        EXTRA_VARIABLES: ${{ inputs.extra_variables }}
       run: |
+        extra_variable_arguments=()
+
+        if [[ -n "$EXTRA_VARIABLES" ]]; then
+          extra_variable_arguments=(--extra-vars "$EXTRA_VARIABLES")
+        fi
+
         ansible-playbook \
           -i "$INVENTORY" \
           "$PLAYBOOK" \
           --private-key "$RUNNER_TEMP/hetzner-ssh-key" \
-          --ssh-common-args="-o StrictHostKeyChecking=accept-new"
+          --ssh-common-args="-o StrictHostKeyChecking=accept-new" \
+          "${extra_variable_arguments[@]}"
 
     - name: Remove deployment SSH key
       if: ${{ always() }}

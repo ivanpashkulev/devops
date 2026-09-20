@@ -1,0 +1,106 @@
+name: Hetzner WireGuard Bootstrap for ivanpashkulev.com
+
+on:
+  workflow_call:
+    secrets:
+      HETZNER_API_TOKEN:
+        required: true
+      HETZNER_INVENTORY_TOKEN:
+        required: true
+      BOOTSTRAP_APP_PRIVATE_KEY:
+        required: true
+      WIREGUARD_RUNNER_PRIVATE_KEY:
+        required: true
+      GH_ACTIONS_PRIVATE_SSH_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-wireguard:
+    name: Bootstrap WireGuard
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install Hetzner Cloud CLI
+        uses: hetznercloud/setup-hcloud@v2
+
+      - name: Allow temporary SSH access for WireGuard bootstrap
+        id: temporary-ssh-access
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          runner_ip="$(curl --fail --silent --show-error https://api.ipify.org)"
+          runner_cidr="${runner_ip}/32"
+
+          hcloud firewall add-rule \
+            --direction in \
+            --protocol tcp \
+            --port 22 \
+            --source-ips "$runner_cidr" \
+            --description "Temporary GitHub Actions WireGuard bootstrap access" \
+            ivanpashkulev-production-firewall
+
+          printf 'runner_cidr=%s\n' "$runner_cidr" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate ivanpashkulev-devops-bootstrap GitHub App
+        id: bootstrap-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Bootstrap runner WireGuard key
+        id: wireguard-bootstrap
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/key-bootstrap@5127817c7871db733c504170abca25962a693385
+        with:
+          github_token: ${{ steps.bootstrap-token.outputs.token }}
+          private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+
+      - name: Bootstrap WireGuard server
+        uses: ./.github/actions/ansible
+        with:
+          playbook: pashkulev.infrastructure.bootstrap_wireguard_server
+          inventory: ansible/inventory/hetzner.hcloud.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+          extra_variables: >-
+            {"wireguard_bootstrap_target":"hetzner","wireguard_bootstrap_runner_public_key":"${{ steps.wireguard-bootstrap.outputs.public_key }}","wireguard_bootstrap_public_key_output_path":"${{ runner.temp }}/wireguard-server-public-key"}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+
+      - name: Store WireGuard server public key
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.bootstrap-token.outputs.token }}
+        run: |
+          gh secret set WIREGUARD_SERVER_PUBLIC_KEY \
+            --repo "$GITHUB_REPOSITORY" \
+            < "$RUNNER_TEMP/wireguard-server-public-key"
+
+      - name: Remove temporary SSH access
+        if: ${{ always() }}
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          RUNNER_CIDR: ${{ steps.temporary-ssh-access.outputs.runner_cidr }}
+        run: |
+          if [[ -z "$RUNNER_CIDR" ]]; then
+            exit 0
+          fi
+
+          hcloud firewall delete-rule \
+            --direction in \
+            --protocol tcp \
+            --port 22 \
+            --source-ips "$RUNNER_CIDR" \
+            --description "Temporary GitHub Actions WireGuard bootstrap access" \
+            ivanpashkulev-production-firewall

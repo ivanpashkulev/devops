@@ -26,3 +26,13 @@ jobs:
     permissions:
       contents: read
       id-token: write
+
+  bootstrap-wireguard:
+    needs: provision
+    uses: ./.github/workflows/hetzner-wireguard-bootstrap.yml
+    secrets:
+      HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+      HETZNER_INVENTORY_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+      BOOTSTRAP_APP_PRIVATE_KEY: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
+      WIREGUARD_RUNNER_PRIVATE_KEY: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+      GH_ACTIONS_PRIVATE_SSH_KEY: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
