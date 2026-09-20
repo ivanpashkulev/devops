@@ -42,7 +42,7 @@ jobs:
 
       - name: Connect runner to WireGuard
         id: wireguard
-        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@5127817c7871db733c504170abca25962a693385
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@1df789a9fed4115bbd8a482b41543c47d940ab58
         with:
           private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
           server_public_key: ${{ secrets.WIREGUARD_SERVER_PUBLIC_KEY }}
@@ -66,8 +66,6 @@ jobs:
       - name: Disconnect runner from WireGuard
         if: ${{ always() && steps.wireguard.outcome == 'success' }}
         shell: bash
-        env:
-          CONFIGURATION_FILE: ${{ steps.wireguard.outputs.configuration_file }}
         run: |
-          sudo wg-quick down "$CONFIGURATION_FILE"
-          rm -f -- "$CONFIGURATION_FILE"
+          sudo wg-quick down wg0
+          sudo rm -f -- /etc/wireguard/wg0.conf
