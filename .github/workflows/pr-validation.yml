@@ -17,7 +17,7 @@ jobs:
 
   validate-compose:
     name: Validate Docker Compose configuration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Check out repository
