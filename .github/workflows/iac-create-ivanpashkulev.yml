@@ -36,3 +36,47 @@ jobs:
       BOOTSTRAP_APP_PRIVATE_KEY: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
       WIREGUARD_RUNNER_PRIVATE_KEY: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
       GH_ACTIONS_PRIVATE_SSH_KEY: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+
+  configure-and-deploy-through-wireguard:
+    name: Configure and deploy through WireGuard
+    needs: bootstrap-wireguard
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve WireGuard server endpoint
+        id: server
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+        run: bash .github/scripts/resolve-hetzner-server-endpoint.sh
+
+      - name: Connect runner to WireGuard
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@1df789a9fed4115bbd8a482b41543c47d940ab58
+        with:
+          private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+          server_public_key: ${{ needs.bootstrap-wireguard.outputs.wireguard_server_public_key }}
+          server_endpoint: ${{ steps.server.outputs.endpoint }}
+
+      - name: Configure and deploy applications
+        uses: ./.github/actions/ansible
+        with:
+          playbook: ansible/deploy.yml
+          inventory: ansible/inventory/hetzner.wireguard.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CLOUDFLARE_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
+          CLOUDFLARE_ORIGIN_KEY: ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
+          OPENAI_MAX_OUTPUT_TOKENS: ${{ vars.OPENAI_MAX_OUTPUT_TOKENS }}
+          CHAT_RATE_LIMIT_PER_DAY: ${{ vars.CHAT_RATE_LIMIT_PER_DAY }}
+          CHAT_MAX_MESSAGE_CHARACTERS: ${{ vars.CHAT_MAX_MESSAGE_CHARACTERS }}
+          CHAT_MAX_HISTORY_CHARACTERS: ${{ vars.CHAT_MAX_HISTORY_CHARACTERS }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+
+      - name: Disconnect runner from WireGuard
+        if: ${{ always() }}
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/disconnect@1f469161d2fa61800171b2a25fa697a9ebb24c4d
