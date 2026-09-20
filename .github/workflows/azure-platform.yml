@@ -1,4 +1,4 @@
-name: Azure Infrastructure
+name: IaC Azure Infrastructure
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Provision Hetzner
+name: IaC Create ivanpashkulev
 
 on:
   workflow_dispatch:
