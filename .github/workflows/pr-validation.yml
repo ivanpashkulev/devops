@@ -11,7 +11,7 @@ permissions:
 jobs:
   terraform-quality:
     name: Terraform quality and security checks
-    uses: pashkulev-devops-projects/github-actions/.github/workflows/terraform-quality.yml@fba02608b604b8b642a1ba3440e0aa34e2b27be0
+    uses: pashkulev-devops-projects/github-actions/.github/workflows/terraform-quality.yml@b42ffb723a69a948d53fbf20fb0118b4dee08045
     with:
       project_paths: '["terraform/hetzner", "terraform/azure-platform"]'
 
