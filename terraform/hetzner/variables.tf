@@ -25,7 +25,7 @@ variable "location" {
 variable "image" {
   type        = string
   description = "Operating-system image used by the servers."
-  default     = "ubuntu-24.04"
+  default     = "ubuntu-26.04"
 }
 
 variable "allowed_ssh_ips" {
