@@ -1,0 +1,37 @@
+name: Terraform Plan ivanpashkulev
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Terraform operation to plan.
+        required: true
+        default: Provision
+        type: choice
+        options:
+          - Provision
+          - Destroy
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hetzner-ivanpashkulev-com
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan Hetzner ${{ inputs.action }}
+    uses: ./.github/workflows/hetzner-terraform.yml
+    with:
+      action: ${{ inputs.action }}
+      should_apply: false
+    secrets:
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ANSIBLE_SERVER_PUBLIC_SSH_KEY: ${{ secrets.ANSIBLE_SERVER_PUBLIC_SSH_KEY }}
+      GH_ACTIONS_PUBLIC_SSH_KEY: ${{ secrets.GH_ACTIONS_PUBLIC_SSH_KEY }}
+    permissions:
+      contents: read
+      id-token: write

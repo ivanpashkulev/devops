@@ -26,15 +26,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  terraform-quality:
-    name: Terraform quality and security checks
-    uses: pashkulev-devops-projects/github-actions/.github/workflows/terraform-quality.yml@fba02608b604b8b642a1ba3440e0aa34e2b27be0
-    with:
-      project_paths: '["terraform/hetzner"]'
-
   provision-and-bootstrap-wireguard:
     name: Provision Hetzner and bootstrap WireGuard
-    needs: terraform-quality
     runs-on: ubuntu-latest
     outputs:
       wireguard_server_public_key: ${{ steps.wireguard-server.outputs.server_public_key }}

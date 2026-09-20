@@ -1,0 +1,60 @@
+name: Hetzner Terraform
+
+on:
+  workflow_call:
+    inputs:
+      action:
+        description: Terraform lifecycle operation.
+        required: true
+        type: string
+      should_apply:
+        description: Whether to apply the generated Terraform plan.
+        required: true
+        type: boolean
+    secrets:
+      AWS_ROLE_TO_ASSUME:
+        required: true
+      HETZNER_API_TOKEN:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      ANSIBLE_SERVER_PUBLIC_SSH_KEY:
+        required: true
+      GH_ACTIONS_PUBLIC_SSH_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate AWS state backend
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-central-1
+
+      - name: Execute Terraform ${{ inputs.action }}
+        uses: pashkulev-devops-projects/github-actions/actions/terraform@508d9cc538b84adeb6744dab7b523093db38645b
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          working_directory: terraform/hetzner
+          action: ${{ inputs.action }}
+          should_apply: ${{ inputs.should_apply }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_ansible_server_public_ssh_key: ${{ secrets.ANSIBLE_SERVER_PUBLIC_SSH_KEY }}
+          TF_VAR_gh_actions_public_ssh_key: ${{ secrets.GH_ACTIONS_PUBLIC_SSH_KEY }}
+          TF_VAR_allowed_ssh_ips: ${{ vars.ALLOWED_SSH_IPS }}
+          TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
