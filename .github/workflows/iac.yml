@@ -28,7 +28,7 @@ concurrency:
 jobs:
   provision-and-bootstrap-wireguard:
     name: Provision Hetzner and bootstrap WireGuard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       wireguard_server_public_key: ${{ steps.wireguard-server.outputs.server_public_key }}
       wireguard_server_endpoint: ${{ steps.wireguard-server.outputs.server_endpoint }}
@@ -114,7 +114,7 @@ jobs:
     name: Configure and deploy through WireGuard
     needs: provision-and-bootstrap-wireguard
     if: ${{ inputs.action == 'Provision' && inputs.should_apply }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Check out repository
