@@ -26,3 +26,32 @@ jobs:
     permissions:
       contents: read
       id-token: write
+
+  remove-wireguard-server-public-key:
+    name: Remove WireGuard server public key
+    needs: destroy
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Authenticate ivanpashkulev-devops-bootstrap GitHub App
+        id: bootstrap-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Delete WireGuard server public key
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.bootstrap-token.outputs.token }}
+        run: |
+          if gh secret list \
+            --repo "$GITHUB_REPOSITORY" \
+            --json name \
+            --jq '.[].name' \
+            | grep --fixed-strings --line-regexp 'WIREGUARD_SERVER_PUBLIC_KEY' > /dev/null; then
+            gh secret delete WIREGUARD_SERVER_PUBLIC_KEY \
+              --repo "$GITHUB_REPOSITORY"
+          fi

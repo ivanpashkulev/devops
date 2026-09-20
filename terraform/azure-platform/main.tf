@@ -16,6 +16,12 @@ resource "azurerm_resource_group" "this" {
   tags     = local.common_tags
 }
 
+resource "azurerm_role_assignment" "github_arc_onboarding" {
+  scope                = azurerm_resource_group.this.id
+  role_definition_name = "Azure Connected Machine Onboarding"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
 module "app_configuration" {
   source = "git::https://github.com/pashkulev-devops-projects/terraform-modules.git//azure/app-configuration?ref=v0.3.0"
 
