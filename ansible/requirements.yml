@@ -6,4 +6,4 @@ collections:
     version: "5.2.2"
   - name: https://github.com/pashkulev-devops-projects/ansible.git
     type: git
-    version: d231f91ed2edbd0cec8c8d82214ae06e561b2f66
+    version: 079c13036287fb4f7766ad30c2686f1ad14c8aab

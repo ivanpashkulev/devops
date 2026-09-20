@@ -65,7 +65,4 @@ jobs:
 
       - name: Disconnect runner from WireGuard
         if: ${{ always() && steps.wireguard.outcome == 'success' }}
-        shell: bash
-        run: |
-          sudo wg-quick down wg0
-          sudo rm -f -- /etc/wireguard/wg0.conf
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/disconnect@1f469161d2fa61800171b2a25fa697a9ebb24c4d
