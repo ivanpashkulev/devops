@@ -16,7 +16,7 @@ resource "azurerm_resource_group" "this" {
   tags     = local.common_tags
 }
 
-resource "azurerm_role_assignment" "github_arc_onboarding" {
+resource "azurerm_role_assignment" "github_arc_lifecycle" {
   scope                = azurerm_resource_group.this.id
   role_definition_name = "Azure Connected Machine Resource Administrator"
   principal_id         = data.azurerm_client_config.current.object_id

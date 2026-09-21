@@ -11,8 +11,69 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  disconnect-azure-arc:
+    name: Disconnect server from Azure Arc
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve WireGuard server endpoint
+        id: server
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+        run: bash .github/scripts/resolve-hetzner-server-endpoint.sh
+
+      - name: Connect runner to WireGuard
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@1df789a9fed4115bbd8a482b41543c47d940ab58
+        with:
+          private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+          server_public_key: ${{ secrets.WIREGUARD_SERVER_PUBLIC_KEY }}
+          server_endpoint: ${{ steps.server.outputs.endpoint }}
+
+      - name: Authenticate Azure through OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Obtain Azure management token
+        id: azure
+        shell: bash
+        run: |
+          access_token="$(
+            az account get-access-token \
+              --resource-type arm \
+              --query accessToken \
+              --output tsv \
+              --only-show-errors
+          )"
+
+          printf '::add-mask::%s\n' "$access_token"
+          printf 'access_token=%s\n' "$access_token" >> "$GITHUB_OUTPUT"
+
+      - name: Disconnect server from Azure Arc
+        uses: ./.github/actions/ansible
+        with:
+          playbook: ansible/disconnect-azure-arc.yml
+          inventory: ansible/inventory/hetzner.wireguard.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+        env:
+          AZURE_ACCESS_TOKEN: ${{ steps.azure.outputs.access_token }}
+
+      - name: Disconnect runner from WireGuard
+        if: ${{ always() }}
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/disconnect@1f469161d2fa61800171b2a25fa697a9ebb24c4d
+
   destroy:
     name: Destroy Hetzner infrastructure
+    needs: disconnect-azure-arc
     uses: ./.github/workflows/hetzner-terraform.yml
     with:
       action: Destroy
