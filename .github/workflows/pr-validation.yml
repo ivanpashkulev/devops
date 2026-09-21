@@ -13,7 +13,7 @@ jobs:
     name: Terraform quality and security checks
     uses: pashkulev-devops-projects/github-actions/.github/workflows/terraform-quality.yml@cb4b7fbab63cef9c737e43ca88ac0265c7598b01
     with:
-      project_paths: '["terraform/hetzner", "terraform/azure-platform"]'
+      project_paths: '["terraform/hetzner", "terraform/azure-platform", "terraform/azure-runtime"]'
 
   validate-compose:
     name: Validate Docker Compose configuration

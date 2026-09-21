@@ -1,0 +1,72 @@
+name: Azure Terraform Reusable Workflow for ivanpashkulev.com
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        description: Terraform root directory relative to the repository.
+        required: true
+        type: string
+      action:
+        description: Terraform lifecycle operation.
+        required: true
+        type: string
+      should_apply:
+        description: Whether to apply the generated Terraform plan.
+        required: true
+        type: boolean
+      azure_location:
+        description: Azure region, when required by the Terraform root.
+        required: false
+        type: string
+        default: ""
+      azure_admin_object_id:
+        description: Microsoft Entra object ID of the Azure administrator, when required.
+        required: false
+        type: string
+        default: ""
+      key_vault_allowed_ip_addresses:
+        description: Terraform value for Key Vault allowed IP addresses, when required.
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_location: ${{ inputs.azure_location }}
+      TF_VAR_azure_admin_object_id: ${{ inputs.azure_admin_object_id }}
+      TF_VAR_key_vault_allowed_ip_addresses: ${{ inputs.key_vault_allowed_ip_addresses }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate Azure through OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Execute Terraform ${{ inputs.action }}
+        uses: pashkulev-devops-projects/github-actions/actions/terraform@508d9cc538b84adeb6744dab7b523093db38645b
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          working_directory: ${{ inputs.working_directory }}
+          action: ${{ inputs.action }}
+          should_apply: ${{ inputs.should_apply }}
