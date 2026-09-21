@@ -1,0 +1,89 @@
+name: Onboard Azure Arc server
+description: Authenticate with Azure, connect a server to Azure Arc, and verify its connection.
+
+inputs:
+  azure_client_id:
+    description: Microsoft Entra application client ID.
+    required: true
+  azure_tenant_id:
+    description: Microsoft Entra tenant ID.
+    required: true
+  azure_subscription_id:
+    description: Azure subscription ID.
+    required: true
+  azure_location:
+    description: Azure region for the Arc machine.
+    required: true
+  azure_arc_resource_group:
+    description: Resource group containing the Arc machine.
+    required: true
+  azure_arc_machine_name:
+    description: Expected Azure Arc machine name.
+    required: true
+  inventory:
+    description: Ansible inventory path relative to the repository root.
+    required: true
+  ssh_private_key:
+    description: SSH private key used to connect to the server.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate Azure through OIDC
+      uses: azure/login@v3
+      with:
+        client-id: ${{ inputs.azure_client_id }}
+        tenant-id: ${{ inputs.azure_tenant_id }}
+        subscription-id: ${{ inputs.azure_subscription_id }}
+
+    - name: Obtain Azure management token
+      id: azure
+      shell: bash
+      run: |
+        access_token="$(
+          az account get-access-token \
+            --resource-type arm \
+            --query accessToken \
+            --output tsv \
+            --only-show-errors
+        )"
+
+        printf '::add-mask::%s\n' "$access_token"
+        printf 'access_token=%s\n' "$access_token" >> "$GITHUB_OUTPUT"
+
+    - name: Connect server to Azure Arc
+      uses: ./.github/actions/ansible
+      with:
+        playbook: ansible/connect-azure-arc.yml
+        inventory: ${{ inputs.inventory }}
+        ssh_private_key: ${{ inputs.ssh_private_key }}
+      env:
+        AZURE_ACCESS_TOKEN: ${{ steps.azure.outputs.access_token }}
+        AZURE_TENANT_ID: ${{ inputs.azure_tenant_id }}
+        AZURE_SUBSCRIPTION_ID: ${{ inputs.azure_subscription_id }}
+        AZURE_ARC_RESOURCE_GROUP: ${{ inputs.azure_arc_resource_group }}
+        AZURE_ARC_MACHINE_NAME: ${{ inputs.azure_arc_machine_name }}
+        AZURE_LOCATION: ${{ inputs.azure_location }}
+
+    - name: Verify Azure Arc connection
+      shell: bash
+      env:
+        AZURE_SUBSCRIPTION_ID: ${{ inputs.azure_subscription_id }}
+        AZURE_ARC_RESOURCE_GROUP: ${{ inputs.azure_arc_resource_group }}
+        AZURE_ARC_MACHINE_NAME: ${{ inputs.azure_arc_machine_name }}
+      run: |
+        status="$(
+          az connectedmachine show \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --name "$AZURE_ARC_MACHINE_NAME" \
+            --resource-group "$AZURE_ARC_RESOURCE_GROUP" \
+            --query status \
+            --output tsv \
+            --only-show-errors
+        )"
+
+        if [[ "$status" != "Connected" ]]; then
+          echo "::error::Azure Arc machine is not connected; reported status: $status"
+          exit 1
+        fi

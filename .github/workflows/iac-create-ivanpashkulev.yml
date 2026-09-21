@@ -42,6 +42,9 @@ jobs:
     name: Configure and deploy through WireGuard
     needs: bootstrap-wireguard
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Check out repository
@@ -60,6 +63,18 @@ jobs:
           private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
           server_public_key: ${{ needs.bootstrap-wireguard.outputs.wireguard_server_public_key }}
           server_endpoint: ${{ steps.server.outputs.endpoint }}
+
+      - name: Onboard server to Azure Arc
+        uses: ./.github/actions/azure-arc-onboard
+        with:
+          azure_client_id: ${{ vars.AZURE_GH_ACTIONS_TF_CLIENT_ID }}
+          azure_tenant_id: ${{ vars.AZURE_TENANT_ID }}
+          azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          azure_location: ${{ vars.AZURE_LOCATION }}
+          azure_arc_resource_group: ivanpashkulev-prod-rg
+          azure_arc_machine_name: ivanpashkulev-prod-server
+          inventory: ansible/inventory/hetzner.wireguard.yml
+          ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
 
       - name: Configure and deploy applications
         uses: ./.github/actions/ansible
