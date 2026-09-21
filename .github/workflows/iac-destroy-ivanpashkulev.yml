@@ -31,6 +31,16 @@ jobs:
       id-token: write
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve server endpoint
+        id: server
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+        run: bash .github/scripts/resolve-hetzner-server-endpoint.sh
+
       - name: Authenticate Azure through OIDC
         uses: azure/login@v3
         with:
@@ -55,6 +65,16 @@ jobs:
               --yes \
               --only-show-errors
           fi
+
+      - name: Remove server access from Key Vault
+        if: ${{ steps.server.outputs.endpoint != '' }}
+        shell: bash
+        run: |
+          az keyvault network-rule remove \
+            --resource-group ivanpashkulev-prod-rg \
+            --name ivanpashkulev-prod-kv \
+            --ip-address "${{ steps.server.outputs.endpoint }}" \
+            --only-show-errors
 
   destroy:
     name: Destroy Hetzner infrastructure

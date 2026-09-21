@@ -76,6 +76,15 @@ jobs:
           inventory: ansible/inventory/hetzner.wireguard.yml
           ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
 
+      - name: Allow server access to Key Vault
+        shell: bash
+        run: |
+          az keyvault network-rule add \
+            --resource-group ivanpashkulev-prod-rg \
+            --name ivanpashkulev-prod-kv \
+            --ip-address "${{ steps.server.outputs.endpoint }}" \
+            --only-show-errors
+
       - name: Disconnect runner from WireGuard
         if: ${{ always() }}
         uses: pashkulev-devops-projects/github-actions/actions/wireguard/disconnect@1f469161d2fa61800171b2a25fa697a9ebb24c4d
