@@ -38,8 +38,8 @@ jobs:
       WIREGUARD_RUNNER_PRIVATE_KEY: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
       GH_ACTIONS_PRIVATE_SSH_KEY: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
 
-  configure-and-deploy-through-wireguard:
-    name: Configure and deploy through WireGuard
+  onboard-server-to-azure-arc:
+    name: Onboard server to Azure Arc
     needs: bootstrap-wireguard
     runs-on: ubuntu-26.04
     permissions:
@@ -75,6 +75,47 @@ jobs:
           azure_arc_machine_name: ivanpashkulev-prod-server
           inventory: ansible/inventory/hetzner.wireguard.yml
           ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
+
+      - name: Disconnect runner from WireGuard
+        if: ${{ always() }}
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/disconnect@1f469161d2fa61800171b2a25fa697a9ebb24c4d
+
+  provision-azure-runtime:
+    name: Provision Azure runtime
+    needs: onboard-server-to-azure-arc
+    uses: ./.github/workflows/azure-terraform.yml
+    with:
+      working_directory: terraform/azure-runtime
+      action: Provision
+      should_apply: true
+    permissions:
+      contents: read
+      id-token: write
+
+  configure-and-deploy-through-wireguard:
+    name: Configure and deploy through WireGuard
+    needs:
+      - bootstrap-wireguard
+      - provision-azure-runtime
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve WireGuard server endpoint
+        id: server
+        shell: bash
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_INVENTORY_TOKEN }}
+        run: bash .github/scripts/resolve-hetzner-server-endpoint.sh
+
+      - name: Connect runner to WireGuard
+        uses: pashkulev-devops-projects/github-actions/actions/wireguard/connect@1df789a9fed4115bbd8a482b41543c47d940ab58
+        with:
+          private_key: ${{ secrets.WIREGUARD_RUNNER_PRIVATE_KEY }}
+          server_public_key: ${{ needs.bootstrap-wireguard.outputs.wireguard_server_public_key }}
+          server_endpoint: ${{ steps.server.outputs.endpoint }}
 
       - name: Configure and deploy applications
         uses: ./.github/actions/ansible

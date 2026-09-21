@@ -11,8 +11,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  destroy-azure-runtime:
+    name: Destroy Azure runtime
+    uses: ./.github/workflows/azure-terraform.yml
+    with:
+      working_directory: terraform/azure-runtime
+      action: Destroy
+      should_apply: true
+    permissions:
+      contents: read
+      id-token: write
+
   disconnect-azure-arc:
     name: Disconnect server from Azure Arc
+    needs: destroy-azure-runtime
     runs-on: ubuntu-26.04
     permissions:
       contents: read
