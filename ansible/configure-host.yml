@@ -2,7 +2,6 @@
 - name: Deploy applications on Hetzner
   hosts: hetzner
   remote_user: root
-  gather_facts: false
 
   tasks:
     - name: Install Docker and Compose
@@ -56,6 +55,18 @@
         dest: /etc/nginx/ssl/cloudflare-origin.key
         mode: "0600"
       no_log: true
+
+    - name: Install Azure runtime synchronizer
+      ansible.builtin.include_role:
+        name: pashkulev.infrastructure.azure_runtime_synchronizer
+      vars:
+        azure_runtime_synchronizer_config:
+          endpoint: https://ivanpashkulev-prod-app-config.azconfig.io
+          label: prod
+          key_prefix: "ivanpashkulev:"
+          sentinel_key: ivanpashkulev:configuration:sentinel
+          refresh_interval_seconds: 300
+          output_directory: /var/lib/ivanpashkulev/runtime
 
     - name: Pull application images
       ansible.builtin.command:
