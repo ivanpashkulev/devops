@@ -129,7 +129,7 @@ jobs:
       - name: Configure and deploy applications
         uses: ./.github/actions/ansible
         with:
-          playbook: ansible/deploy.yml
+          playbook: ansible/configure-host.yml
           inventory: ansible/inventory/hetzner.wireguard.yml
           ssh_private_key: ${{ secrets.GH_ACTIONS_PRIVATE_SSH_KEY }}
         env:
